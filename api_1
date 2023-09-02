@@ -1,0 +1,48 @@
+from pprint import pprint
+import requests
+import os
+import json
+
+class VK:
+
+    def __init__(self, access_token, version='5.131'):
+       self.token = access_token
+       self.version = version
+       self.params = {'access_token': self.token, 'v': self.version}
+
+    def search_users(self, sex, age_from, age_to, hometown):
+        url = 'https://api.vk.com/method/users.search'
+        params = {"sex": sex, "age_from": age_from, "age_to": age_to, 'hometown': hometown, "count":10, **self.params}
+        response = requests.get(url, params=params)
+        return response.json()
+
+    def get_photos(self, owner_id):
+        url = 'https://api.vk.com/method/photos.getAll'
+        params = {'owner_id': owner_id, "extended":1, 'album_id': 'profile', **self.params}
+        res = requests.get(url, params=params).json()
+        # return response.json()
+
+        photos = []
+        likes = []
+        urls = []
+
+        for photo in res['response']['items']:
+            like = photo['likes']['count']
+            photo_id = photo['id']
+            photo_url = photo['sizes'][-1]['url']
+            likes.append(like)
+            photos.append(photo_id)
+            urls.append(photo_url)
+        result = sorted(zip(likes,urls), reverse=True)[:3]
+        return result
+
+
+
+access_token = ''
+vk = VK(access_token, version='5.131')
+
+users =vk.search_users(2,35,45, "Санкт-Петербург")
+photos = vk.get_photos(245803298)
+
+pprint(users)
+pprint(photos)
