@@ -35,7 +35,22 @@ def add_user(fname, lname, gender, birth_date, location):
 
     session.add(newuser)   
     session.commit()
-    
+
+
+def like(liker, liked):
+
+    newlike = Likes(liker = liker,
+                    liked = liked)
+    session.add(newlike)   
+    session.commit()
+
+def block(blocker, blocked):
+
+    newlike = Likes(blocker = blocker,
+                    blocked = blocked)
+    session.add(newlike)   
+    session.commit()
+
 
 session.close
 
@@ -43,3 +58,7 @@ session.close
 if __name__ == "__main__":
 
     add_user('adsad', 'fssfsdf', 'm', '20.12.2021', 'kazan')
+    add_user('Alena', 'fssfsdf', 'f', '03.12.1995', 'kazan')
+    add_user('Vasia', 'fssfsdf', 'm', '20.12.2000', 'voronezh')
+    like(1,2)
+    like(1,4)
