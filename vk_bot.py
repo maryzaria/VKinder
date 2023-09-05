@@ -2,18 +2,17 @@ import os
 from dotenv import load_dotenv
 
 
-load_dotenv()
-vk_bot_token = os.getenv('VK_BOT_TOKEN')
-
 from random import randrange
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
-token = os.getenv('VK_BOT_TOKEN')
 
-vk = vk_api.VkApi(token=token)
+load_dotenv()
+vk_bot_token = os.getenv('VK_BOT_TOKEN')
+
+vk = vk_api.VkApi(token=vk_bot_token)
 longpoll = VkLongPoll(vk)
 
 
