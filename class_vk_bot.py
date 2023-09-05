@@ -1,13 +1,15 @@
 import os
+import logging
+import re
 from dotenv import load_dotenv
-
-
 from random import randrange
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
-from vk_api.keyboard import VkKeyboard, VkKeyboardColor, VkKeyboardButton
-import re
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+
+
+logging.basicConfig(level=logging.INFO, filename="pylog.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s")
 
 
 class VkinderBot:
@@ -47,9 +49,10 @@ class VkinderBot:
         vk_bot_token = os.getenv('VK_BOT_TOKEN')
         try:
             self.vk = vk_api.VkApi(token=vk_bot_token)
+            logging.info('Successful authorization')
             return self.vk.get_api()
         except Exception as error:
-            print(error)
+            logging.critical(error)
             return None
 
     def send_msg(self, user_id, text='', keyboard=None, attachment=None):
@@ -62,7 +65,7 @@ class VkinderBot:
         :return: None
         """
         if not self.authorized:
-            print("Unauthorized. Check if ACCESS_TOKEN is valid")  #logging
+            logging.error("Unauthorized. Check if ACCESS_TOKEN is valid")
             return
 
         message = {
@@ -79,14 +82,15 @@ class VkinderBot:
 
         try:
             self.vk.method('messages.send', message)
-            print(f"Сообщение отправлено для ID {user_id} с текстом: {text}")  # для логирования
+            logging.info(f"Сообщение отправлено для ID {user_id} с текстом: {text}")
         except Exception as error:
-            print(error)
+            logging.error(error)
 
     def start_message(self, user_id):
         """Стартовое сообщение"""
-        # метод, собирающий информацию о пользователе
+        # метод, собирающий информацию о пользователе, если он еще не в БД
         # метод, добавляющий пользователя в БД
+        logging.info(f'Пользователь {user_id} внесен в базу данных')
         keyboard = VkKeyboard(one_time=False, inline=True)
         keyboard.add_button(label='Начать поиск', color=VkKeyboardColor.SECONDARY)
         self.send_msg(user_id, "Привет! Ты готов начать поиск партнера?", keyboard=keyboard)
@@ -154,9 +158,16 @@ class VkinderBot:
             keyboard.add_button(label='Стоп', color=VkKeyboardColor.NEGATIVE)
             self.send_msg(user_id, text='Список пуст. Продолжить поиск?', keyboard=keyboard)
         else:
-            for like in likes:
-                name, photo = like
-                self.send_msg(user_id, text=name, attachment=photo)
+            # for like in likes:
+            #     name, photo = like # отправлять одним сообщением, а не несколькими
+            #     self.send_msg(user_id, text=name, attachment=photo)
+
+            for _ in range(len(likes) // 10 + 2):
+                like10 = likes[:10]
+                likes = likes[10:] if len(likes) >= 10 else []
+                names = '\n'.join([like[0] for like in like10])
+                photos = ','.join([like[1] for like in like10])
+                self.send_msg(user_id, text=names, attachment=photos)
 
     def run_long_poll(self):
         """Запуск бота"""
@@ -166,7 +177,7 @@ class VkinderBot:
                 msg_text = event.text
                 id = event.user_id
                 # print(msg_text)
-                print(self.state)
+                # print(self.state)
                 # пользователь нажимает кнопку 'начать' или пишет 'начать' или 'привет'
                 if re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("привет", 'начать'):
                     self.start_message(id)
@@ -175,12 +186,11 @@ class VkinderBot:
                 elif msg_text == "Начать поиск" or self.state == 'start':
                     # self.town(id)
                     self.send_msg(id, 'Введите город, где хотите найти партнера')
-
                     self.state = 'town'
 
                 elif self.state == 'town':
                     town = msg_text
-                    print(f'Город {town} сохранен')
+                    logging.info(f'Пользователь: {id}. Предпочтительный город {town} сохранен')
                     # сохраняем выбранный город town в БД
                     # обновляем состояние пользователя в БД
                     self.state = 'age'
@@ -188,17 +198,17 @@ class VkinderBot:
 
                 elif self.state == 'age':
                     age = msg_text
-                    print(f'Возраст {age} сохранен')
-                    # сохраняем выбранный возраст town в БД
+                    # сохраняем выбранный возраст town в БД, учитывая, что возраст в формате '20-30'
                     # обновляем состояние пользователя в БД
+                    logging.info(f'Пользователь: {id}. Предпочтительный возраст {age} сохранен')
                     self.state = 'sex'
                     self.sex(id)
 
                 elif self.state == 'sex':
                     sex = msg_text
-                    print(f'Пол {sex} сохранен')
                     # сохраняем выбранный пол town в БД
                     # обновляем состояние пользователя в БД
+                    logging.info(f'Пользователь: {id}. Предпочтительный пол {sex} сохранен')
                     self.state = 'search'
                     self.send_user_photos(id)
 
@@ -208,12 +218,12 @@ class VkinderBot:
 
                 elif msg_text == 'Нравится':
                     # сохраняем пользователя self.new_user_id в таблицу likes
-                    print(f'{self.new_user_id} нравится {id}')
+                    logging.info(f'Пользователь {id} поставил лайк {self.new_user_id}')
                     self.continue_conversation(id)
 
                 elif msg_text == 'Не нравится':
                     # сохраняем пользователя self.new_user_id в таблицу dislikes
-                    print(f'{self.new_user_id} не нравится {id}')
+                    logging.info(f'Пользователь {id} поставил дизлайк {self.new_user_id}')
                     self.continue_conversation(id)
 
                 elif msg_text == 'Список понравившихся пользователей':
@@ -225,6 +235,7 @@ class VkinderBot:
 
                 else:
                     self.send_msg(event.user_id, "Не понял вашего ответа, попробуйте еще раз")
+                    logging.error(f'Пользователь {id} написал {msg_text}')
 
 
 if __name__ == '__main__':
