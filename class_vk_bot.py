@@ -119,7 +119,8 @@ class VkinderBot:
         # Здесь проверка, нет ли пользователя с таким id в таблице дизлайков, если есть, заново вызываем next() if new_user not in dislikes:
 
         self.new_user_id = 'new_id'  # new_user.get('id')
-        user_name = 'Имя найденного пользователя'  # new_user.get('username')
+        user_name = f'Имя найденного пользователя\nссылка на профиль'  # new_user.get('username'), new_user.get('href') или 'url'
+
         photos = ['photo-222321058_457239077']  # название метода, возвращающего список фотографий вида
         # photos = [f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}"]
 
