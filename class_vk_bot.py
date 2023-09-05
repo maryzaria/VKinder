@@ -6,10 +6,8 @@ from random import randrange
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
-from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor, VkKeyboardButton
 import re
-
-# print(re.sub(r'[!?.,<>:''""/]*', '', '"Привет/!!!?>'))
 
 
 class VkinderBot:
@@ -25,13 +23,8 @@ class VkinderBot:
     # длительное подключение
     long_poll = None
 
-    # # id пользователя ВКонтакте (например, 1234567890) в виде строки
-    # # можно использовать, если диалог будет вестись только с конкретным человеком
-    # default_user_id = None
     def __init__(self):
-        """
-        Инициализация бота при помощи получения доступа к API ВКонтакте
-        """
+        """ Инициализация бота при помощи получения доступа к API ВКонтакте """
         load_dotenv()
         # авторизация
         self.vk_api_access = self.do_auth()
@@ -39,8 +32,11 @@ class VkinderBot:
         if self.vk_api_access is not None:
             self.authorized = True
 
-        # vk = vk_api.VkApi(token=vk_bot_token)
         self.long_poll = VkLongPoll(self.vk)
+
+        self.state = None
+
+        self.new_user_id = None
 
     def do_auth(self):
         """
@@ -62,6 +58,7 @@ class VkinderBot:
         :param user_id: кому отправить
         :param text: текст сообщения
         :param keyboard: наличие клавиатуры
+        :param attachment: наличие вложений
         :return: None
         """
         if not self.authorized:
@@ -77,17 +74,8 @@ class VkinderBot:
             message['keyboard'] = keyboard.get_keyboard()
 
         if attachment:
-
             # здесь к сообщению прикрепляем фотографии
             message['attachment'] = attachment
-
-            # self.vk.method('messages.send', {
-            #     'user_id': event.user_id,
-            #     'message': "Имя первого пользователя",
-            #     'attachment': attachment,
-            #     'random_id': randrange(10 ** 7)
-            # })
-
 
         try:
             self.vk.method('messages.send', message)
@@ -97,87 +85,147 @@ class VkinderBot:
 
     def start_message(self, user_id):
         """Стартовое сообщение"""
+        # метод, собирающий информацию о пользователе
+        # метод, добавляющий пользователя в БД
         keyboard = VkKeyboard(one_time=False, inline=True)
         keyboard.add_button(label='Начать поиск', color=VkKeyboardColor.SECONDARY)
         self.send_msg(user_id, "Привет! Ты готов начать поиск партнера?", keyboard=keyboard)
 
-    def send_user_photos(self, user_id, new_user_id, user_name, photos=()):
-        """ """
-        uploader = vk_api.upload.VkUpload(self.vk)
-        # передаем список фотографий photos = ['photo1.jpg', 'photo2.jpg', 'photo3.jpg']
-        img = uploader.photo_messages(photos)
-        attachment = ''
-        for photo in img:
-            attachment += f"photo{photo['owner_id']}_{photo['id']},"
+    def age(self, user_id):
+        """Клавиатура для выбора возраста"""
+        keyboard = VkKeyboard(one_time=False, inline=True)
+        keyboard.add_button(label='20-30')
+        keyboard.add_button(label='30-40')
+        keyboard.add_line()
+        keyboard.add_button(label='40-50')
+        keyboard.add_button(label='50-60')
+        self.send_msg(user_id, 'Выберите возрастную категорию', keyboard=keyboard)
 
-        # p = {
-        #     'type': 'callback_button',
-        #     # 'task': self.callback_button,
-        #     'user': user_id,
-        #     'likes': new_user_id
-        # }
+    def sex(self, user_id):
+        """Выбор пола"""
+        keyboard = VkKeyboard(one_time=False, inline=True)
+        keyboard.add_button(label='Женский')
+        keyboard.add_button(label='Мужской')
+        self.send_msg(user_id, 'Выберите пол будущего партнера', keyboard=keyboard)
 
-        p = {
-            "type": "show_snackbar",
-            "text": "Покажи исчезающее сообщение на экране"
-          }
+    def send_user_photos(self, user_id):
+        """Метод для поиска и отправки пользователю потенциального партнера"""
+        # здесь вызываем метод, который осуществляет поиск подходящих пользователей.
+        # чтобы не делать поиск каждый раз, когда вызывается этот метод, в метод поиска добавляем проверку: если список существует, поиск не делаем.
+        # Критерии поиска достаем из БД
+        # Потом выдаем информацию (словарь) о следующем пользователе и список фотографий (обязательно добавить проверку на наличие фотографий при отборе кандидатов)
 
+        new_user = {}  # next() - метод, выдающий следующего пользователя из списка (словарь данных о нем)
+        # Здесь проверка, нет ли пользователя с таким id в таблице дизлайков, если есть, заново вызываем next() if new_user not in dislikes:
+
+        self.new_user_id = 'new_id'  # new_user.get('id')
+        user_name = 'Имя найденного пользователя'  # new_user.get('username')
+        photos = ['photo-222321058_457239077']  # название метода, возвращающего список фотографий вида
+        # photos = [f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}"]
+
+        # собираем все фото во вложение
+        attachment = ','.join(photos)
 
         keyboard = VkKeyboard(one_time=False, inline=True)
-        keyboard.add_callback_button(label='Нравится', color=VkKeyboardColor.POSITIVE, payload=p)
-        # keyboard.add_button(label='Нравится', color=VkKeyboardColor.POSITIVE)
+        keyboard.add_button(label='Нравится', color=VkKeyboardColor.POSITIVE)
         keyboard.add_button(label='Не нравится', color=VkKeyboardColor.NEGATIVE)
-        keyboard.add_line()
-        keyboard.add_button(label='Дальше', color=VkKeyboardColor.PRIMARY)
-        keyboard.add_button(label='Стоп', color=VkKeyboardColor.SECONDARY)
+        # keyboard.add_line()
+        # keyboard.add_button(label='Дальше', color=VkKeyboardColor.PRIMARY)
+        # keyboard.add_button(label='Стоп', color=VkKeyboardColor.SECONDARY)
 
         self.send_msg(user_id, user_name, keyboard=keyboard, attachment=attachment)
 
-    @staticmethod
-    def callback_button(new_user_id):
-        print(new_user_id)
+    def continue_conversation(self, user_id):
+        """Метод спрашивает, хочет ли пользователь продолжить поиск"""
+        keyboard = VkKeyboard(one_time=False, inline=True)
+        keyboard.add_button(label='Дальше', color=VkKeyboardColor.PRIMARY)
+        keyboard.add_button(label='Стоп', color=VkKeyboardColor.NEGATIVE)
+        keyboard.add_line()
+        keyboard.add_button(label='Список понравившихся пользователей', color=VkKeyboardColor.SECONDARY)
+        self.send_msg(user_id, 'Хотите продолжить поиск?', keyboard=keyboard)
+
+    def like_list(self, user_id):
+        """Метод для вывода списка понравившихся пользователей"""
+        likes = [] # здесь нужен метод, который вернет список понравившихся пользователей: имя и их фото (кортеж)
+        if not likes:
+            keyboard = VkKeyboard(one_time=False, inline=True)
+            keyboard.add_button(label='Дальше', color=VkKeyboardColor.PRIMARY)
+            keyboard.add_button(label='Стоп', color=VkKeyboardColor.NEGATIVE)
+            self.send_msg(user_id, text='Список пуст. Продолжить поиск?', keyboard=keyboard)
+        else:
+            for like in likes:
+                name, photo = like
+                self.send_msg(user_id, text=name, attachment=photo)
 
     def run_long_poll(self):
-        """
-        Запуск бота
-        """
+        """Запуск бота"""
         for event in self.long_poll.listen():
-            # print(event.type)
-            # print('extra_values', event.extra_values)
-            # print('flags', event.flags)
-            # print(event.extra)
-            print(event)
+            # print(event)
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                # print(event.message_flags)
-
                 msg_text = event.text
+                id = event.user_id
+                # print(msg_text)
+                print(self.state)
                 # пользователь нажимает кнопку 'начать' или пишет 'начать' или 'привет'
                 if re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("привет", 'начать'):
-                    # метод, собирающий информацию о пользователе
-                    # метод, добавляющий пользователя в БД
-                    self.start_message(event.user_id)
+                    self.start_message(id)
+                    self.state = 'start'  # обновить состояние пользователя в БД
 
-                elif msg_text in ("Начать поиск", 'Дальше'):
-                    # здесь ищем следующего пользователя, отправляем его имя и список фотографий
-                    # нужен метод, который возвращает id, имя найденного пользователя и список его фотографий
-                    # (обязательно добавить проверку на наличие фотографий при отборе кандидатов)
-                    new_user_id = 'new_id'
-                    user_name = 'Имя найденного пользователя'
-                    photos = ['hearts.jpg', 'vkinder.jpg']
-                    self.send_user_photos(event.user_id, new_user_id, user_name, photos=photos)
+                elif msg_text == "Начать поиск" or self.state == 'start':
+                    # self.town(id)
+                    self.send_msg(id, 'Введите город, где хотите найти партнера')
+
+                    self.state = 'town'
+
+                elif self.state == 'town':
+                    town = msg_text
+                    print(f'Город {town} сохранен')
+                    # сохраняем выбранный город town в БД
+                    # обновляем состояние пользователя в БД
+                    self.state = 'age'
+                    self.age(id)
+
+                elif self.state == 'age':
+                    age = msg_text
+                    print(f'Возраст {age} сохранен')
+                    # сохраняем выбранный возраст town в БД
+                    # обновляем состояние пользователя в БД
+                    self.state = 'sex'
+                    self.sex(id)
+
+                elif self.state == 'sex':
+                    sex = msg_text
+                    print(f'Пол {sex} сохранен')
+                    # сохраняем выбранный пол town в БД
+                    # обновляем состояние пользователя в БД
+                    self.state = 'search'
+                    self.send_user_photos(id)
 
                 elif re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("пока", "завершить", "до свидания", "стоп", "хватит"):
-                    self.send_msg(event.user_id, "Поиск завершен! До свидания🖤")
+                    self.state = 'stop'
+                    self.send_msg(id, f"Поиск приостановлен! До скорой встречи🖤\nЕсли захотите возобновить поиск, напишите ПРИВЕТ или НАЧАТЬ")
+
+                elif msg_text == 'Нравится':
+                    # сохраняем пользователя self.new_user_id в таблицу likes
+                    print(f'{self.new_user_id} нравится {id}')
+                    self.continue_conversation(id)
+
+                elif msg_text == 'Не нравится':
+                    # сохраняем пользователя self.new_user_id в таблицу dislikes
+                    print(f'{self.new_user_id} не нравится {id}')
+                    self.continue_conversation(id)
+
+                elif msg_text == 'Список понравившихся пользователей':
+                    self.like_list(id)
+                    self.state = 'stop'
+
+                elif msg_text == 'Дальше' or self.state == 'search':
+                    self.send_user_photos(id)
+
                 else:
                     self.send_msg(event.user_id, "Не понял вашего ответа, попробуйте еще раз")
 
 
-            # elif event. .payload.get('type') == 'callback_button':
-            #     print(event)
-            #     print('ураа')
-
-
-
-
-vk = VkinderBot()
-vk.run_long_poll()
+if __name__ == '__main__':
+    vk = VkinderBot()
+    vk.run_long_poll()
