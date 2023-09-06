@@ -4,56 +4,66 @@ from configparser import ConfigParser
 from sqlalchemy.orm import sessionmaker
 from models import create_tables, Users, Preferences, Likes, Blocks, Matches
 
-configur = ConfigParser()
-configur.read('config.ini')
-  
+class data_base:
 
-DSN = (configur.get('connection', 'dbtype') + '://' +
-       configur.get('connection', 'user') + 
-       ':' + configur.get('connection', 'password') + 
-       '@' + configur.get('connection', 'server') + 
-       ':' + configur.get('connection', 'port') + '/' 
-       + configur.get('connection', 'db'))
+    def __init__(self, config):
+        self.config = config
+        self.initialize(self.config)
 
-engine = sqlalchemy.create_engine(DSN)
+    def initialize(self, config: str):
 
-create_tables(engine)
+        self.configur = ConfigParser()
+        self.configur.read(config)
+        self.dsn = (self.configur.get('connection', 'dbtype') + '://' +
+               self.configur.get('connection', 'user') + 
+               ':' + self.configur.get('connection', 'password') + 
+               '@' + self.configur.get('connection', 'server') + 
+               ':' + self.configur.get('connection', 'port') + '/' 
+               + self.configur.get('connection', 'db'))
+        self.engine = sq.create_engine(self.dsn)
+        return self.engine
 
-Session = sessionmaker(bind=engine)
+    def create_session(self, engine):
 
-session = Session()
-session.commit()   
+        self.Session = sessionmaker(bind=engine)
+        self.session = self.Session()
+        self.session.commit()
+        return self.session  
 
+    def add_user(self, vk_id, fname, lname, gender, birth_date, location, state):
 
-def add_user(fname, lname, gender, birth_date, location, state):
+        mysession = self.create_session(self.engine)
 
-    newuser = Users(fname = fname,
-                    lname = lname,
-                    gender = gender,
-                    birth_date = datetime.strptime(birth_date, '%d.%m.%Y'),
-                    location = location,
-                    state = state)
+        newuser = Users(vk_id = vk_id,
+                        fname = fname,
+                        lname = lname,
+                        gender = gender,
+                        birth_date = datetime.strptime(birth_date, '%d.%m.%Y'),
+                        location = location,
+                        state = state)
 
-    session.add(newuser)   
-    session.commit()
+        mysession.add(newuser)   
+        mysession.commit()
+        mysession.close()
 
+    def update_state(self, vk_id, new_state):
 
-def update_state(vk_id, new_state):
+        mysession = self.create_session(self.engine)
 
-    user_to_update = session.query(Users).filter_by(vk_id=vk_id).first()
+        user_to_update = mysession.query(Users).filter_by(vk_id=vk_id).first()
 
-    if user_to_update:
-    
-        user_to_update.state = new_state
-        session.commit()
-
-    else:
+        if user_to_update:
         
-        print("User not found.")
+            user_to_update.state = new_state
+            mysession.commit()
 
-session.close()
+        else:
+            
+            print("User not found.")
 
+            mysession.close()
 
+'''
 def like(liker, liked):
 
     newlike = Likes(liker = liker,
@@ -71,13 +81,16 @@ def block(blocker, blocked):
 
 session.close
 
-
+'''
 if __name__ == "__main__":
 
-    add_user('id123456', 'Ivan', 'Ivanov', 'm', '20.12.2001', 'Moscow', '')
-    add_user('id456789', 'Ivanova', 'f', '03.12.1995', 'Kazan', '')
-    add_user('id025345', 'Pupkin', 'm', '20.12.2000', 'Voronezh', '')
-    add_user('id345666', 'Pupkin', 'm', '20.12.2000', 'Nizhniy Novgorod', '')
-    add_user('id034534', 'Pupkina', 'f', '20.01.1996', 'Peterburg', '')
+    newdb = data_base('config.ini')
+    create_tables(newdb.engine)
+    newdb.create_session(newdb.engine)
+    newdb.add_user('id123456', 'Ivan', 'Ivanov', 'm', '20.12.2001', 'Moscow', '')
+    #add_user('id456789', 'Ivanova', 'f', '03.12.1995', 'Kazan', '')
+    #add_user('id025345', 'Pupkin', 'm', '20.12.2000', 'Voronezh', '')
+    #add_user('id345666', 'Pupkin', 'm', '20.12.2000', 'Nizhniy Novgorod', '')
+    #add_user('id034534', 'Pupkina', 'f', '20.01.1996', 'Peterburg', '')
     #like(1,2)
     #like(1,4)
