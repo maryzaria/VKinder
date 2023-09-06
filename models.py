@@ -9,14 +9,16 @@ class Users(Base):
     __tablename__ = 'users'
     
     id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
+    vk_id = sq.Column(sq.String(length=100), nullable=False)
     fname = sq.Column(sq.String(length=100), nullable=False)
     lname = sq.Column(sq.String(length=100), nullable=False)
     gender = sq.Column(sq.String(length=1), nullable=False)
     birth_date = sq.Column(sq.Date, nullable=False)
     location = sq.Column(sq.String(length=50), nullable=False)
+    state = sq.Column(sq.String(length=10))
 
     def __str__(self):
-        return f"{self.id}: {self.fname} , {self.lname} , {self.gender}, {self.birth_date}, {self.location}"
+        return f"{self.id}: {self.fname} , {self.lname} , {self.gender}, {self.birth_date}, {self.location}, {self.state}"
    
 
 class Preferences(Base):
