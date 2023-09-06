@@ -9,7 +9,7 @@ class Users(Base):
     __tablename__ = 'users'
     
     id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
-    vk_id = sq.Column(sq.String(length=100), nullable=False)
+    vk_id = sq.Column(sq.Integer, nullable=False, unique=True)
     fname = sq.Column(sq.String(length=100), nullable=False)
     lname = sq.Column(sq.String(length=100), nullable=False)
     gender = sq.Column(sq.String(length=1), nullable=False)
@@ -25,11 +25,11 @@ class Preferences(Base):
 
     __tablename__ = 'preferences'
     
-    id = sq.Column(sq.Integer, sq.ForeignKey("users.id"), primary_key=True)
-    gender = sq.Column(sq.String(length=1), nullable=False)
-    age_from = sq.Column(sq.Integer, nullable=False)
-    age_to = sq.Column(sq.Integer)
-    location = sq.Column(sq.String(length=50), nullable=False)
+    id = sq.Column(sq.Integer, sq.ForeignKey("users.id"), primary_key=True, autoincrement=True)
+    vk_id = sq.Column(sq.Integer, nullable=False, unique=True)
+    gender = sq.Column(sq.String(length=1))
+    age = sq.Column(sq.String(10))
+    location = sq.Column(sq.String(length=50))
     
 
     preferences = relationship(Users, backref='preferences')
@@ -42,7 +42,7 @@ class Likes(Base):
 
     __tablename__ = 'likes'
     
-    liker = sq.Column(sq.Integer, sq.ForeignKey("users.id"), primary_key=True, nullable=False)
+    liker = sq.Column(sq.Integer, sq.ForeignKey("users.vk_id"), primary_key=True, nullable=False)
     liked = sq.Column(sq.Integer, primary_key=True, nullable=False)
 
     likes = relationship(Users, backref='likes')
@@ -55,7 +55,7 @@ class Blocks(Base):
 
     __tablename__ = 'blocks'
     
-    blocker = sq.Column(sq.Integer, sq.ForeignKey("users.id"), primary_key=True, nullable=False)
+    blocker = sq.Column(sq.Integer, sq.ForeignKey("users.vk_id"), primary_key=True, nullable=False)
     blocked = sq.Column(sq.Integer, primary_key=True, nullable=False)
 
     blocks = relationship(Users, backref='blocks')
@@ -67,7 +67,7 @@ class Matches(Base):
 
     __tablename__ = 'matches'
 
-    user1 = sq.Column(sq.Integer, sq.ForeignKey("users.id"), primary_key=True, nullable=False)
+    user1 = sq.Column(sq.Integer, sq.ForeignKey("users.vk_id"), primary_key=True, nullable=False)
     user2 = sq.Column(sq.Integer, primary_key=True, nullable=False)
     matches = relationship(Users, backref='matches')
 

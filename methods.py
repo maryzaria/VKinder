@@ -3,6 +3,7 @@ import sqlalchemy as sq
 from configparser import ConfigParser
 from sqlalchemy.orm import sessionmaker
 from models import create_tables, Users, Preferences, Likes, Blocks, Matches
+from sqlalchemy import exc
 
 class data_base:
 
@@ -34,9 +35,7 @@ class data_base:
 
         create_tables(self.engine)
 
-    def add_user(self, vk_id, fname, lname, gender, birth_date, location, state):
-
-        mysession = self.create_session(self.engine)
+    def add_user(self, vk_id, fname, lname, gender, birth_date, location, state, cursess):
 
         newuser = Users(vk_id = vk_id,
                         fname = fname,
@@ -46,56 +45,152 @@ class data_base:
                         location = location,
                         state = state)
 
-        mysession.add(newuser)   
-        mysession.commit()
-        mysession.close()
+        cursess.add(newuser)   
+        cursess.commit()
+        cursess.close()
 
-    def update_state(self, vk_id, new_state):
+    def update_state(self, vk_id, new_state, cursess):
 
-        mysession = self.create_session(self.engine)
+        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
 
-        user_to_update = mysession.query(Users).filter_by(vk_id=vk_id).first()
-
-        if user_to_update:
+        if self.user_to_update:
         
-            user_to_update.state = new_state
-            mysession.commit()
+            self.user_to_update.state = new_state
+            cursess.commit()
 
         else:
             
             print("User not found.")
 
-            mysession.close()
+            cursess.close()
 
-'''
-def like(liker, liked):
+    def like(self, liker, liked, cursess):
+      
+        self.newlike = Likes(liker = liker,
+                        liked = liked)
+        cursess.add(self.newlike)   
+        try:
+            cursess.commit()
+        except exc.IntegrityError:
+            pass
+        cursess.close()
 
-    newlike = Likes(liker = liker,
-                    liked = liked)
-    session.add(newlike)   
-    session.commit()
+    def block(self, blocker, blocked, cursess):
 
-def block(blocker, blocked):
+        cursess = self.create_session(self.engine)
 
-    newlike = Likes(blocker = blocker,
-                    blocked = blocked)
-    session.add(newlike)   
-    session.commit()
+        self.newblock = Blocks(blocker = blocker,
+                        blocked = blocked)
+        cursess.add(self.newblock)   
+        try:
+            cursess.commit()
+        except exc.IntegrityError:
+            pass
+        cursess.close()
 
+    def match(self, matcher, matched, cursess):
 
-session.close
+        self.newmatch = Matches(user1 = matcher,
+                        user2 = matched)
+        cursess.add(self.newmatch)   
+        try:
+            cursess.commit()
+        except exc.IntegrityError:
+            pass
+        cursess.close()
 
-'''
+    def prefer_location(self, vk_id, location, cursess):
+
+        #находим запись пользователя в БД
+        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        #проверяем существует ли запись в БД
+        if self.user_to_update:
+            newpref = Preferences(vk_id = vk_id,
+                                  location = location)
+            cursess.add(newpref)   
+            cursess.commit()
+
+        else:
+            print("User not found.")
+
+        cursess.close()
+
+    def prefer_age(self, vk_id, age: str, cursess):
+
+        cursess = self.create_session(self.engine)
+        #находим запись пользователя в БД
+        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        #проверяем существует ли запись в БД
+        if self.user_to_update:
+
+            self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
+            self.pref_to_update.age = age
+            cursess.commit()
+
+        else:
+            print("User not found.")
+
+        cursess.close()
+
+    def prefer_gender(self, vk_id, gender: str, cursess):
+
+        #находим запись пользователя в БД
+        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        #проверяем существует ли запись в БД
+        if self.user_to_update:
+
+            self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
+            self.pref_to_update.gender = gender
+            cursess.commit()
+
+        else:
+            print("User not found.")
+
+        cursess.close()
+
+    def get_pref(self, vk_id, cursess):
+        
+        
+        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        if self.user_to_update:
+            self.pref = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
+            result = {'vk_id': self.pref.vk_id,
+                      'gender': self.pref.gender,
+                      'age': self.pref.age,
+                      'location': self.pref.location}
+
+        else:
+            print('User does not exist.')
+        cursess.close
+        return result
+
 if __name__ == "__main__":
 
     newdb = data_base('config.ini')
+    
     newdb.build_tables()
-    newdb.create_session(newdb.engine)
-    newdb.add_user('id123456', 'Ivan', 'Ivanov', 'm', '20.12.2001', 'Moscow', '')
-    newdb.update_state('id123456', 'start')
+    
+    mysession = newdb.create_session(newdb.engine)
+    
+    newdb.add_user('123456', 'Ivan', 'Ivanov', 'm', '20.12.2001', 'Moscow', '', mysession)
+    newdb.add_user('456789', 'Ivanna', 'Ivanova', 'f', '03.12.1995', 'Kazan', '', mysession)
+    newdb.add_user('025345', 'Vasiliy' , 'Pupkin', 'm', '20.12.2000', 'Voronezh', '', mysession)
+    newdb.add_user('345666', 'Fedor' , 'Pupkin', 'm', '20.12.2000', 'Nizhniy Novgorod', '', mysession)
+    newdb.add_user('034534', 'Irina', 'Pupkina', 'f', '20.01.1996', 'Peterburg', '', mysession)
+    newdb.update_state('123456', 'start', mysession)
+    
+    newdb.like('456789', '025345', mysession)
+    newdb.like('025345', '345666', mysession)
+    newdb.block('025345', '345666', mysession)
+    newdb.match('456789', '025345', mysession)
+    newdb.prefer_location('123456', 'Kazan', mysession)
+    newdb.prefer_age('123456', '20-30', mysession)
+    newdb.prefer_gender('123456', 'm', mysession)
+    print(newdb.get_pref('123456', mysession))
     #add_user('id456789', 'Ivanova', 'f', '03.12.1995', 'Kazan', '')
     #add_user('id025345', 'Pupkin', 'm', '20.12.2000', 'Voronezh', '')
     #add_user('id345666', 'Pupkin', 'm', '20.12.2000', 'Nizhniy Novgorod', '')
     #add_user('id034534', 'Pupkina', 'f', '20.01.1996', 'Peterburg', '')
     #like(1,2)
     #like(1,4)
+    mysession.close()
