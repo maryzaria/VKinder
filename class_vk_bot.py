@@ -8,6 +8,9 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
+from api_vk import VK
+from class_next_user import NextUser
+
 
 logging.basicConfig(level=logging.INFO, filename="pylog.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s")
 
@@ -24,6 +27,11 @@ class VkinderBot:
 
     # длительное подключение
     long_poll = None
+
+    # эти параметры будем доставать из БД, в конце надо будет убрать эту строку
+    age_from, age_to, city, sex = None, None, None, None
+
+    users_candidates = {}
 
     def __init__(self):
         """ Инициализация бота при помощи получения доступа к API ВКонтакте """
@@ -105,29 +113,33 @@ class VkinderBot:
         keyboard.add_button(label='50-60')
         self.send_msg(user_id, 'Выберите возрастную категорию', keyboard=keyboard)
 
-    def sex(self, user_id):
+    def prefer_sex(self, user_id):
         """Выбор пола"""
         keyboard = VkKeyboard(one_time=False, inline=True)
         keyboard.add_button(label='Женский')
         keyboard.add_button(label='Мужской')
         self.send_msg(user_id, 'Выберите пол будущего партнера', keyboard=keyboard)
 
+
+
+
+
     def send_user_photos(self, user_id):
         """Метод для поиска и отправки пользователю потенциального партнера"""
+
         # здесь вызываем метод, который осуществляет поиск подходящих пользователей.
         # чтобы не делать поиск каждый раз, когда вызывается этот метод, в метод поиска добавляем проверку: если список существует, поиск не делаем.
-        # Критерии поиска достаем из БД
         # Потом выдаем информацию (словарь) о следующем пользователе и список фотографий (обязательно добавить проверку на наличие фотографий при отборе кандидатов)
 
-        new_user = {}  # next() - метод, выдающий следующего пользователя из списка (словарь данных о нем)
+        new_user = next(self.users_candidates[user_id])  # next() - метод, выдающий следующего пользователя из списка (словарь данных о нем)
         # Здесь проверка, нет ли пользователя с таким id в таблице дизлайков, если есть, заново вызываем next() if new_user not in dislikes:
+        print(new_user)
+        new_user_id = new_user.get('id')  # new_user.get('id')
+        user_name = f"{new_user.get('first_name')}\n{new_user.get('user_url')}"  # new_user.get('first_name'), new_user.get('user_url') или 'url'
 
-        self.new_user_id = 'new_id'  # new_user.get('id')
-        user_name = f'Имя найденного пользователя\nссылка на профиль'  # new_user.get('username'), new_user.get('href') или 'url'
-
-        photos = ['photo-222321058_457239077']  # название метода, возвращающего список фотографий вида
+        photos = VK().get_photos(owner_id=new_user_id)  # название метода, возвращающего список фотографий вида
         # photos = [f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}"]
-
+        print(photos)
         # собираем все фото во вложение
         attachment = ','.join(photos)
 
@@ -189,27 +201,29 @@ class VkinderBot:
                     self.state = 'town'
 
                 elif self.state == 'town':
-                    town = msg_text
-                    logging.info(f'Пользователь: {id}. Предпочтительный город {town} сохранен')
+                    self.city = msg_text
+                    logging.info(f'Пользователь: {id}. Предпочтительный город {self.city} сохранен')
                     # сохраняем выбранный город town в БД
                     # обновляем состояние пользователя в БД
                     self.state = 'age'
                     self.age(id)
 
                 elif self.state == 'age':
-                    age = msg_text
+                    self.age_from, self.age_to = map(int, msg_text.split('-'))
+                    print(self.age_from, self.age_to)
                     # сохраняем выбранный возраст town в БД, учитывая, что возраст в формате '20-30'
                     # обновляем состояние пользователя в БД
-                    logging.info(f'Пользователь: {id}. Предпочтительный возраст {age} сохранен')
+                    logging.info(f'Пользователь: {id}. Предпочтительный возраст {self.age_from}-{self.age_to} сохранен')
                     self.state = 'sex'
-                    self.sex(id)
+                    self.prefer_sex(id)
 
                 elif self.state == 'sex':
-                    sex = msg_text
+                    self.sex = 1 if msg_text == 'Женский' else 2
                     # сохраняем выбранный пол town в БД
                     # обновляем состояние пользователя в БД
-                    logging.info(f'Пользователь: {id}. Предпочтительный пол {sex} сохранен')
+                    logging.info(f'Пользователь: {id}. Предпочтительный пол {msg_text}({self.sex}) сохранен')
                     self.state = 'search'
+                    self.users_candidates[id] = NextUser(user_id=id)
                     self.send_user_photos(id)
 
                 elif re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("пока", "завершить", "до свидания", "стоп", "хватит"):
