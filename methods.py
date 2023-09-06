@@ -47,7 +47,6 @@ class data_base:
 
         cursess.add(newuser)   
         cursess.commit()
-        cursess.close()
 
     def update_state(self, vk_id, new_state, cursess):
 
@@ -62,7 +61,6 @@ class data_base:
             
             print("User not found.")
 
-            cursess.close()
 
     def like(self, liker, liked, cursess):
       
@@ -73,7 +71,6 @@ class data_base:
             cursess.commit()
         except exc.IntegrityError:
             pass
-        cursess.close()
 
     def block(self, blocker, blocked, cursess):
 
@@ -86,7 +83,6 @@ class data_base:
             cursess.commit()
         except exc.IntegrityError:
             pass
-        cursess.close()
 
     def match(self, matcher, matched, cursess):
 
@@ -97,7 +93,6 @@ class data_base:
             cursess.commit()
         except exc.IntegrityError:
             pass
-        cursess.close()
 
     def prefer_location(self, vk_id, location, cursess):
 
@@ -113,7 +108,6 @@ class data_base:
         else:
             print("User not found.")
 
-        cursess.close()
 
     def prefer_age(self, vk_id, age: str, cursess):
 
@@ -130,7 +124,6 @@ class data_base:
         else:
             print("User not found.")
 
-        cursess.close()
 
     def prefer_gender(self, vk_id, gender: str, cursess):
 
@@ -146,7 +139,6 @@ class data_base:
         else:
             print("User not found.")
 
-        cursess.close()
 
     def get_pref(self, vk_id, cursess):
         
