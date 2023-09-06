@@ -30,6 +30,10 @@ class data_base:
         self.session.commit()
         return self.session  
 
+    def build_tables(self):
+
+        create_tables(self.engine)
+
     def add_user(self, vk_id, fname, lname, gender, birth_date, location, state):
 
         mysession = self.create_session(self.engine)
@@ -85,9 +89,10 @@ session.close
 if __name__ == "__main__":
 
     newdb = data_base('config.ini')
-    create_tables(newdb.engine)
+    newdb.build_tables()
     newdb.create_session(newdb.engine)
     newdb.add_user('id123456', 'Ivan', 'Ivanov', 'm', '20.12.2001', 'Moscow', '')
+    newdb.update_state('id123456', 'start')
     #add_user('id456789', 'Ivanova', 'f', '03.12.1995', 'Kazan', '')
     #add_user('id025345', 'Pupkin', 'm', '20.12.2000', 'Voronezh', '')
     #add_user('id345666', 'Pupkin', 'm', '20.12.2000', 'Nizhniy Novgorod', '')
