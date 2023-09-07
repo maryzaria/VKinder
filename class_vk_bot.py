@@ -210,7 +210,6 @@ class VkinderBot:
 
                 elif self.state == 'age':
                     self.age_from, self.age_to = map(int, msg_text.split('-'))
-                    print(self.age_from, self.age_to)
                     # сохраняем выбранный возраст town в БД, учитывая, что возраст в формате '20-30'
                     # обновляем состояние пользователя в БД
                     logging.info(f'Пользователь: {id}. Предпочтительный возраст {self.age_from}-{self.age_to} сохранен')

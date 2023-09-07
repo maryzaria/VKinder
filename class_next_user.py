@@ -5,6 +5,7 @@ class NextUser:
     candidates = {}
 
     def __init__(self, user_id):
+        self.user_id = user_id
         self.candidates_list = self.candidates_for_user(user_id)
         self.next_candidate = self.next_user(self.candidates_list)
 
@@ -30,7 +31,12 @@ class NextUser:
         return self.candidates[user_id]
 
     def __next__(self):
-        return next(self.next_candidate)
+        try:
+            return next(self.next_candidate)
+        except StopIteration:
+            self.candidates_list = self.candidates_for_user(self.user_id)
+            self.next_candidate = self.next_user(self.candidates_list)
+            return next(self.next_candidate)
 
 
 if __name__ == '__main__':
