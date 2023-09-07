@@ -44,6 +44,7 @@ class VK:
         for candidate in response['response']['items']:
             candidate_id = candidate.get('id')
             if not candidate['is_closed'] and candidate_id:
+                # здесь добавить проверку на то, есть ли в БД candidate_id найденного кандидата (был ли он ранее показан пользователю бота)
                 candidates_list.append(
                     {'id': candidate_id,
                      'first_name': candidate.get('first_name', ''),
