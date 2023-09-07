@@ -120,26 +120,18 @@ class VkinderBot:
         keyboard.add_button(label='Мужской')
         self.send_msg(user_id, 'Выберите пол будущего партнера', keyboard=keyboard)
 
-
-
-
-
     def send_user_photos(self, user_id):
         """Метод для поиска и отправки пользователю потенциального партнера"""
-
         # здесь вызываем метод, который осуществляет поиск подходящих пользователей.
         # чтобы не делать поиск каждый раз, когда вызывается этот метод, в метод поиска добавляем проверку: если список существует, поиск не делаем.
         # Потом выдаем информацию (словарь) о следующем пользователе и список фотографий (обязательно добавить проверку на наличие фотографий при отборе кандидатов)
 
         new_user = next(self.users_candidates[user_id])  # next() - метод, выдающий следующего пользователя из списка (словарь данных о нем)
         # Здесь проверка, нет ли пользователя с таким id в таблице дизлайков, если есть, заново вызываем next() if new_user not in dislikes:
-        print(new_user)
-        new_user_id = new_user.get('id')  # new_user.get('id')
-        user_name = f"{new_user.get('first_name')}\n{new_user.get('user_url')}"  # new_user.get('first_name'), new_user.get('user_url') или 'url'
+        new_user_id = new_user.get('id')
+        user_name = f"{new_user.get('first_name')}\n{new_user.get('user_url')}"
 
         photos = VK().get_photos(owner_id=new_user_id)  # название метода, возвращающего список фотографий вида
-        # photos = [f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}", f"photo{photo['owner_id']}_{photo['id']}"]
-        print(photos)
         # собираем все фото во вложение
         attachment = ','.join(photos)
 
