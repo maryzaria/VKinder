@@ -53,8 +53,8 @@ class data_base:
             if not self.pref_to_update:
                 newpref = Preferences(vk_id=vk_id,
                                       gender='',
-                                      age_from='',
-                                      age_to='',
+                                      age_from=0,
+                                      age_to=0,
                                       location='')
             cursess.add(newuser)   
             cursess.add(newpref)
@@ -110,48 +110,41 @@ class data_base:
     def prefer_location(self, vk_id, location, cursess):
 
         #находим запись пользователя в БД
-        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
         #проверяем существует ли запись в БД
-        if self.user_to_update:
-            newpref = Preferences(vk_id = vk_id,
-                                  location = location)
-            cursess.add(newpref)   
+        if self.pref_to_update:
+            self.pref_to_update.location = location
             cursess.commit()
 
         else:
-            print("User not found.")
+            print("User is not found in Preferences table.")
 
 
     def prefer_age(self, vk_id, age_from: str, age_to:str, cursess):
 
-        cursess = self.create_session(self.engine)
         #находим запись пользователя в БД
-        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
         #проверяем существует ли запись в БД
-        if self.user_to_update:
-
-            self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
+        if self.pref_to_update:
             self.pref_to_update.age_from = age_from
             self.pref_to_update.age_to = age_to
             cursess.commit()
 
         else:
-            print("User not found.")
+            print("User is not found in Preferences table.")
 
 
     def prefer_gender(self, vk_id, gender: str, cursess):
 
         #находим запись пользователя в БД
-        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
         #проверяем существует ли запись в БД
-        if self.user_to_update:
-
-            self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
+        if self.pref_to_update:
             self.pref_to_update.gender = gender
             cursess.commit()
 
         else:
-            print("User not found.")
+            print("User is not found in Preferences table.")
 
 
     def get_pref(self, vk_id, cursess):

@@ -10,6 +10,7 @@ load_dotenv()
 class VK:
     def __init__(self, version='5.131'):
        self.token = 'vk1.a.9cXUpD-97TySv8LiGe_s5_1Yd45I35xquQdL5izhYGE0KzPlc4EoYudRBtX_xg-gzxENXlf9c77Os-wKt7jFYPYX_lchufIrWeoB6LpG7DGeFgPwSw9EsO1Yw-zNSkzN_dq3M5U41SZT--rGetu_LyWD20ztH4-1fhgSaxteP9uY3-xPSs-njVfTgxXTHOtQoqqJc7S-lGvaa8O317NBXg'
+       #раскоментить гетенв
        #self.token = os.getenv('VK_TOKEN')
        self.version = version
        self.params = {'access_token': self.token, 'v': self.version}

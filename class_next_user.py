@@ -1,5 +1,5 @@
 from api_vk import VK
-
+from methods import data_base
 
 class NextUser:
     candidates = {}
@@ -22,6 +22,7 @@ class NextUser:
         if users is None:
             vk_search = VK()
             # sex, age_from, age_to, city = ... - Критерии поиска достаем из БД
+            #get_pref(vk_id=user_id, cursess)
             sex, age_from, age_to, city = 1, 30, 45, 2
             city = vk_search.city_convert_id(user_id=user_id, q=city)
             candidates_for_user = vk_search.search_candidates(sex=sex, age_from=age_from,
