@@ -10,6 +10,7 @@ from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
 from api_vk import VK
 from class_next_user import NextUser
+from methods import data_base
 
 
 logging.basicConfig(level=logging.INFO, filename="pylog.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s")
@@ -54,7 +55,8 @@ class VkinderBot:
         Использует переменную, хранящуюся в файле настроек окружения .env в виде строки ACCESS_TOKEN="1q2w3e4r5t6y7u8i9o..."
         :return: возможность работать с API
         """
-        vk_bot_token = os.getenv('VK_BOT_TOKEN')
+        #vk_bot_token = os.getenv('VK_BOT_TOKEN') 
+        vk_bot_token = 'vk1.a.Q9-Qs93of88NZcgUNtqUq6fLA8wBvoLsyHRxJGHjgIP2eLUhxQNbWoVeqE4WEoi6LKc-VNxGRsnI4VaePT_m_7Q3PGEqIKs4UBsErkp2INxvLrKS82_CkMT2OK4GEj8pq0zY27u-dVQvNf11uvxrDhLR5klsmbVyGvQs1gjxVC0vdHdOGpYFn1l8YsXxIo8Y6_TyyeNUhwh4PhAYW01mAg'
         try:
             self.vk = vk_api.VkApi(token=vk_bot_token)
             logging.info('Successful authorization')
@@ -184,26 +186,51 @@ class VkinderBot:
                 # print(self.state)
                 # пользователь нажимает кнопку 'начать' или пишет 'начать' или 'привет'
                 if re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("привет", 'начать'):
+                    new_vk_api = VK()
+                    newdict = new_vk_api.get_user_info(user_ids=id)
+                    # создаем новую бд с параметрами подключения из config.ini
+                    newdb = data_base('config.ini')
+                    # создаем все таблицы
+                    newdb.build_tables()
+                    # открываем новую сессию бд
+                    new_session = newdb.create_session(newdb.engine)
+                    # добавляем данные пользователя взятые из словаря newdict из метода .get_user_info класса VK api
+                    newdb.add_user(newdict['id'],
+                                   newdict['first_name'],
+                                   newdict['last_name'],
+                                   'M' if newdict['sex'] == 1 else 'F',
+                                   newdict['bdate'] if 'bdate' in newdict else '31.12.9999',
+                                   newdict['city']['title'],
+                                   'start',
+                                   new_session)
                     self.start_message(id)
+                    # отдельным методом не обновлял статус, при создании новой записи в бд сразу присвоил start
                     self.state = 'start'  # обновить состояние пользователя в БД
+
 
                 elif msg_text == "Начать поиск" or self.state == 'start':
                     # self.town(id)
                     self.send_msg(id, 'Введите город, где хотите найти партнера')
                     self.state = 'town'
+                    # обновляем состояние пользователя в БД
+                    newdb.update_state(vk_id=id, new_state='town', cursess=new_session)
 
                 elif self.state == 'town':
                     self.city = msg_text
                     logging.info(f'Пользователь: {id}. Предпочтительный город {self.city} сохранен')
                     # сохраняем выбранный город town в БД
+                    newdb.prefer_location(vk_id=id, location=self.city, cursess=new_session)
                     # обновляем состояние пользователя в БД
+                    newdb.update_state(vk_id=id, new_state='age', cursess=new_session)
                     self.state = 'age'
                     self.age(id)
 
                 elif self.state == 'age':
                     self.age_from, self.age_to = map(int, msg_text.split('-'))
                     # сохраняем выбранный возраст town в БД, учитывая, что возраст в формате '20-30'
+                    newdb.prefer_age(vk_id=id, age_from=self.age_from, age_to=self.age_to, cursess=new_session)
                     # обновляем состояние пользователя в БД
+                    newdb.update_state(vk_id=id, new_state='sex', cursess=new_session)
                     logging.info(f'Пользователь: {id}. Предпочтительный возраст {self.age_from}-{self.age_to} сохранен')
                     self.state = 'sex'
                     self.prefer_sex(id)
@@ -211,7 +238,9 @@ class VkinderBot:
                 elif self.state == 'sex':
                     self.sex = 1 if msg_text == 'Женский' else 2
                     # сохраняем выбранный пол town в БД
+                    newdb.prefer_gender(vk_id=id, gender=self.sex, cursess=new_session)
                     # обновляем состояние пользователя в БД
+                    newdb.update_state(vk_id=id, new_state='search', cursess=new_session)
                     logging.info(f'Пользователь: {id}. Предпочтительный пол {msg_text}({self.sex}) сохранен')
                     self.state = 'search'
                     self.users_candidates[id] = NextUser(user_id=id)
@@ -223,16 +252,19 @@ class VkinderBot:
 
                 elif msg_text == 'Нравится':
                     # сохраняем пользователя self.new_user_id в таблицу likes
+                    newdb.like(liker=id, liked=self.new_user_id, cursess=new_session)
                     logging.info(f'Пользователь {id} поставил лайк {self.new_user_id}')
                     self.continue_conversation(id)
 
                 elif msg_text == 'Не нравится':
                     # сохраняем пользователя self.new_user_id в таблицу dislikes
+                    newdb.block(blocker=id, blocked=self.new_user_id, cursess=new_session)
                     logging.info(f'Пользователь {id} поставил дизлайк {self.new_user_id}')
                     self.continue_conversation(id)
 
                 elif msg_text == 'Список понравившихся пользователей':
                     self.like_list(id)
+                    newdb.update_state(vk_id=id, new_state='stop', cursess=new_session)
                     self.state = 'stop'
 
                 elif msg_text == 'Дальше' or self.state == 'search':

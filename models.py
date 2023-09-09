@@ -10,11 +10,11 @@ class Users(Base):
     
     id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
     vk_id = sq.Column(sq.Integer, nullable=False, unique=True)
-    fname = sq.Column(sq.String(length=100), nullable=False)
-    lname = sq.Column(sq.String(length=100), nullable=False)
-    gender = sq.Column(sq.String(length=1), nullable=False)
-    birth_date = sq.Column(sq.Date, nullable=False)
-    location = sq.Column(sq.String(length=50), nullable=False)
+    fname = sq.Column(sq.String(length=100))
+    lname = sq.Column(sq.String(length=100))
+    gender = sq.Column(sq.String(length=1))
+    birth_date = sq.Column(sq.Date)
+    location = sq.Column(sq.String(length=50))
     state = sq.Column(sq.String(length=10))
 
     def __str__(self):
@@ -28,7 +28,8 @@ class Preferences(Base):
     id = sq.Column(sq.Integer, sq.ForeignKey("users.id"), primary_key=True, autoincrement=True)
     vk_id = sq.Column(sq.Integer, nullable=False, unique=True)
     gender = sq.Column(sq.String(length=1))
-    age = sq.Column(sq.String(10))
+    age_from = sq.Column(sq.Integer)
+    age_to = sq.Column(sq.Integer)
     location = sq.Column(sq.String(length=50))
     
 

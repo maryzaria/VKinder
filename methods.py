@@ -37,16 +37,29 @@ class data_base:
 
     def add_user(self, vk_id, fname, lname, gender, birth_date, location, state, cursess):
 
-        newuser = Users(vk_id = vk_id,
-                        fname = fname,
-                        lname = lname,
-                        gender = gender,
-                        birth_date = datetime.strptime(birth_date, '%d.%m.%Y'),
-                        location = location,
-                        state = state)
+        self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
 
-        cursess.add(newuser)   
-        cursess.commit()
+        if not self.user_to_update:
+
+            newuser = Users(vk_id = vk_id,
+                            fname = fname,
+                            lname = lname,
+                            gender = gender,
+                            birth_date = datetime.strptime(birth_date, '%d.%m.%Y'),
+                            location = location,
+                            state = state)
+
+            self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
+            if not self.pref_to_update:
+                newpref = Preferences(vk_id=vk_id,
+                                      gender='',
+                                      age_from='',
+                                      age_to='',
+                                      location='')
+            cursess.add(newuser)   
+            cursess.add(newpref)
+            cursess.commit()
+
 
     def update_state(self, vk_id, new_state, cursess):
 
@@ -109,7 +122,7 @@ class data_base:
             print("User not found.")
 
 
-    def prefer_age(self, vk_id, age: str, cursess):
+    def prefer_age(self, vk_id, age_from: str, age_to:str, cursess):
 
         cursess = self.create_session(self.engine)
         #находим запись пользователя в БД
@@ -118,7 +131,8 @@ class data_base:
         if self.user_to_update:
 
             self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
-            self.pref_to_update.age = age
+            self.pref_to_update.age_from = age_from
+            self.pref_to_update.age_to = age_to
             cursess.commit()
 
         else:
