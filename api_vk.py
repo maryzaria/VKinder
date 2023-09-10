@@ -30,7 +30,7 @@ class VK:
         except KeyError:
             return {}
 
-    def search_candidates(self, sex, age_from, age_to, city, status=(1, 6), has_photo=1):
+    def search_candidates(self, sex, age_from, age_to, city, status=(1, 6), has_photo=1, user_ids=0, db=None, cursess=None):
         url = 'https://api.vk.com/method/users.search'
         params = {"sex": sex,
                   "age_from": age_from,
@@ -49,20 +49,23 @@ class VK:
         for candidate in response['response']['items']:
             candidate_id = candidate.get('id')
             if not candidate['is_closed'] and candidate_id:
+                
                 # здесь добавить проверку на то, есть ли в БД candidate_id найденного кандидата (был ли он ранее показан пользователю бота)
-                candidates_list.append(
-                    {'id': candidate_id,
-                     'first_name': candidate.get('first_name', ''),
-                     'last_name': candidate.get('last_name', ''),
-                     'sex': candidate.get('sex', 0),
-                     'city': candidate.get('city', ''),
-                     # 'city_id': candidate.get('city', {}).get('id', ''),
-                     # 'city_title': candidate.get('city', {}).get('title', ''),
-                     'bdate': candidate.get('bdate', ''),
-                     'photo_id': candidate.get('photo_id', ''),
-                     # 'top_photo': self.get_photos(candidate_id),
-                     'user_url': f"https://vk.com/id{candidate_id}"}
-                )
+                # возвращаю true если кандидат уже есть
+                if not db.check_if_seen(user_ids, candidate_id, cursess):
+                    candidates_list.append(
+                        {'id': candidate_id,
+                        'first_name': candidate.get('first_name', ''),
+                        'last_name': candidate.get('last_name', ''),
+                        'sex': candidate.get('sex', 0),
+                        'city': candidate.get('city', ''),
+                        # 'city_id': candidate.get('city', {}).get('id', ''),
+                        # 'city_title': candidate.get('city', {}).get('title', ''),
+                        'bdate': candidate.get('bdate', ''),
+                        'photo_id': candidate.get('photo_id', ''),
+                        # 'top_photo': self.get_photos(candidate_id),
+                        'user_url': f"https://vk.com/id{candidate_id}"}
+                    )
             # if len(candidates_list) >= 1200:
             #     break
 

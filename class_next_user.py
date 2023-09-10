@@ -4,9 +4,9 @@ from methods import data_base
 class NextUser:
     candidates = {}
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, cursess, db):
         self.user_id = user_id
-        self.candidates_list = self.candidates_for_user(user_id)
+        self.candidates_list = self.candidates_for_user(user_id, cursess, db)
         self.next_candidate = self.next_user(self.candidates_list)
 
     def __iter__(self):
@@ -16,17 +16,17 @@ class NextUser:
     def next_user(data):
         yield from data
 
-    def candidates_for_user(self, user_id):
+    def candidates_for_user(self, user_id, cursess, db):
         users = self.candidates.get(user_id)
         # print(users)
         if users is None:
             vk_search = VK()
             # sex, age_from, age_to, city = ... - Критерии поиска достаем из БД
-            #get_pref(vk_id=user_id, cursess)
-            sex, age_from, age_to, city = 1, 30, 45, 2
+            result = db.get_pref(vk_id=user_id, cursess=cursess)
+            vk_id, sex, age_from, age_to, city = result.values()
             city = vk_search.city_convert_id(user_id=user_id, q=city)
             candidates_for_user = vk_search.search_candidates(sex=sex, age_from=age_from,
-                                                              age_to=age_to, city=city)
+                                                              age_to=age_to, city=city, user_ids=user_id, db=db, cursess=cursess)
             # sex=self.sex, age_from=self.age_from, age_to=self.age_to, city=self.city
             self.candidates[user_id] = candidates_for_user
         return self.candidates[user_id]

@@ -132,6 +132,14 @@ class VkinderBot:
         new_user = next(self.users_candidates[user_id])  # next() - метод, выдающий следующего пользователя из списка (словарь данных о нем)
         # Здесь проверка, нет ли пользователя с таким id в таблице дизлайков, если есть, заново вызываем next() if new_user not in dislikes:
         new_user_id = new_user.get('id')
+        count = 0
+        is_blocked = self.newdb.is_blocked(user_id, new_user_id, self.new_session)
+        while is_blocked or count >10:
+            new_user = next(self.users_candidates[user_id])
+            new_user_id = new_user.get('id')
+            is_blocked = self.newdb.is_blocked(user_id, new_user_id, self.new_session)
+            count += 1
+        #new_user_id = new_user.get('id')
         user_name = f"{new_user.get('first_name')}\n{new_user.get('user_url')}"
 
         photos = VK().get_photos(owner_id=new_user_id)  # название метода, возвращающего список фотографий вида
@@ -146,6 +154,17 @@ class VkinderBot:
         # keyboard.add_button(label='Стоп', color=VkKeyboardColor.SECONDARY)
 
         self.send_msg(user_id, user_name, keyboard=keyboard, attachment=attachment)
+        # добавляем в БД информацию о кандидате - он был показан
+        self.newdb.add_candidate(user_id,
+                                 new_user['id'],
+                                 new_user['first_name'],
+                                 new_user['last_name'],
+                                 new_user['sex'],
+                                 new_user['city']['title'] if new_user['city'] != '' else '',
+                                 new_user['bdate'],
+                                 new_user['photo_id'],
+                                 new_user['user_url'],
+                                 self.new_session)
 
     def continue_conversation(self, user_id):
         """Метод спрашивает, хочет ли пользователь продолжить поиск"""
@@ -194,7 +213,7 @@ class VkinderBot:
                     # создаем все таблицы
                     self.newdb.build_tables()
                     # открываем новую сессию бд
-                    new_session = self.newdb.create_session(self.newdb.engine)
+                    self.new_session = self.newdb.create_session(self.newdb.engine)
                     # добавляем данные пользователя взятые из словаря newdict из метода .get_user_info класса VK api
                     self.newdb.add_user(newdict['id'],
                                    newdict['first_name'],
@@ -203,7 +222,7 @@ class VkinderBot:
                                    newdict['bdate'] if 'bdate' in newdict else '31.12.9999',
                                    newdict['city']['title'],
                                    'start',
-                                   new_session)
+                                   self.new_session)
                     self.start_message(id)
                     # отдельным методом не обновлял статус, при создании новой записи в бд сразу присвоил start
                     self.state = 'start'  # обновить состояние пользователя в БД
@@ -214,24 +233,24 @@ class VkinderBot:
                     self.send_msg(id, 'Введите город, где хотите найти партнера')
                     self.state = 'town'
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='town', cursess=new_session)
+                    self.newdb.update_state(vk_id=id, new_state='town', cursess=self.new_session)
 
                 elif self.state == 'town':
                     self.city = msg_text
                     logging.info(f'Пользователь: {id}. Предпочтительный город {self.city} сохранен')
                     # сохраняем выбранный город town в БД
-                    self.newdb.prefer_location(vk_id=id, location=self.city, cursess=new_session)
+                    self.newdb.prefer_location(vk_id=id, location=self.city, cursess=self.new_session)
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='age', cursess=new_session)
+                    self.newdb.update_state(vk_id=id, new_state='age', cursess=self.new_session)
                     self.state = 'age'
                     self.age(id)
 
                 elif self.state == 'age':
                     self.age_from, self.age_to = map(int, msg_text.split('-'))
                     # сохраняем выбранный возраст town в БД, учитывая, что возраст в формате '20-30'
-                    self.newdb.prefer_age(vk_id=id, age_from=self.age_from, age_to=self.age_to, cursess=new_session)
+                    self.newdb.prefer_age(vk_id=id, age_from=self.age_from, age_to=self.age_to, cursess=self.new_session)
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='sex', cursess=new_session)
+                    self.newdb.update_state(vk_id=id, new_state='sex', cursess=self.new_session)
                     logging.info(f'Пользователь: {id}. Предпочтительный возраст {self.age_from}-{self.age_to} сохранен')
                     self.state = 'sex'
                     self.prefer_sex(id)
@@ -241,12 +260,12 @@ class VkinderBot:
                     # сохраняем выбранный пол town в БД
                     self.newdb.prefer_gender(vk_id=id,
                                         gender=self.sex,
-                                        cursess=new_session)
+                                        cursess=self.new_session)
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='search', cursess=new_session)
+                    self.newdb.update_state(vk_id=id, new_state='search', cursess=self.new_session)
                     logging.info(f'Пользователь: {id}. Предпочтительный пол {msg_text}({self.sex}) сохранен')
                     self.state = 'search'
-                    self.users_candidates[id] = NextUser(user_id=id)
+                    self.users_candidates[id] = NextUser(user_id=id, cursess=self.new_session, db=self.newdb)
                     self.send_user_photos(id)
 
                 elif re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("пока", "завершить", "до свидания", "стоп", "хватит"):
@@ -255,19 +274,20 @@ class VkinderBot:
 
                 elif msg_text == 'Нравится':
                     # сохраняем пользователя self.new_user_id в таблицу likes
-                    self.newdb.like(liker=id, liked=self.new_user_id, cursess=new_session)
+                    self.newdb.like(liker=id, liked=self.new_user_id, cursess=self.new_session)
                     logging.info(f'Пользователь {id} поставил лайк {self.new_user_id}')
                     self.continue_conversation(id)
 
                 elif msg_text == 'Не нравится':
                     # сохраняем пользователя self.new_user_id в таблицу dislikes
-                    self.newdb.block(blocker=id, blocked=self.new_user_id, cursess=new_session)
+                    self.newdb.block(blocker=id, blocked=self.new_user_id, cursess=self.new_session)
                     logging.info(f'Пользователь {id} поставил дизлайк {self.new_user_id}')
                     self.continue_conversation(id)
 
                 elif msg_text == 'Список понравившихся пользователей':
                     self.like_list(id)
-                    self.newdb.update_state(vk_id=id, new_state='stop', cursess=new_session)
+                    self.newdb.update_state(vk_id=id, new_state='stop', cursess=self.new_session)
+                    self.newdb.show_liked(id, self.new_session)
                     self.state = 'stop'
 
                 elif msg_text == 'Дальше' or self.state == 'search':

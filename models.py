@@ -20,6 +20,26 @@ class Users(Base):
     def __str__(self):
         return f"{self.id}: {self.fname} , {self.lname} , {self.gender}, {self.birth_date}, {self.location}, {self.state}"
    
+class Candidate(Base):
+
+    __tablename__ = 'candidate'
+    
+    id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
+    viewer_vk_id = sq.Column(sq.Integer, sq.ForeignKey("users.vk_id"), nullable=False)
+    vk_id = sq.Column(sq.Integer, nullable=False)
+    fname = sq.Column(sq.String(length=100))
+    lname = sq.Column(sq.String(length=100))
+    gender = sq.Column(sq.String(length=1))
+    location = sq.Column(sq.String(length=50))
+    birth_date = sq.Column(sq.Date)
+    photo_id = sq.Column(sq.String(length=100))
+    user_url = sq.Column(sq.String(length=100))
+
+    candidate = relationship(Users, backref='candidate')
+
+    def __str__(self):
+        return f"{self.id}: {self.viewer_vk_id}, {self.vk_id}, {self.fname} , {self.lname} , {self.gender}, {self.birth_date}, {self.location}, {self.photo_id}, {self.user_url}"
+   
 
 class Preferences(Base):
 
