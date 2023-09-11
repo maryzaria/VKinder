@@ -4,15 +4,18 @@ from configparser import ConfigParser
 from sqlalchemy.orm import sessionmaker
 from models import create_tables, Users, Preferences, Likes, Blocks, Matches, Candidate
 from sqlalchemy import exc
+import logging
+
+
+logging.basicConfig(level=logging.INFO, filename="pylog.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s")
+
 
 class data_base:
-
     def __init__(self, config):
         self.config = config
         self.initialize(self.config)
 
     def initialize(self, config: str):
-
         self.configur = ConfigParser()
         self.configur.read(config)
         self.dsn = (self.configur.get('connection', 'dbtype') + '://' +
@@ -25,29 +28,30 @@ class data_base:
         return self.engine
 
     def create_session(self, engine):
-
         self.Session = sessionmaker(bind=engine)
         self.session = self.Session()
         self.session.commit()
         return self.session  
 
     def build_tables(self):
-
         create_tables(self.engine)
 
     def add_user(self, vk_id, fname, lname, gender, birth_date, location, state, cursess):
-
         self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
+        try:
+            l = birth_date.split('.')
+            bdate = datetime.strptime(birth_date, '%d.%m.%Y') if len(l) == 3 else datetime.strptime(birth_date, '%d.%m')
+        except ValueError:
+            bdate = datetime(year=9999, month=12, day=31)
 
         if not self.user_to_update:
-
-            newuser = Users(vk_id = vk_id,
-                            fname = fname,
-                            lname = lname,
-                            gender = gender,
-                            birth_date = datetime.strptime(birth_date, '%d.%m.%Y'),
-                            location = location,
-                            state = state)
+            newuser = Users(vk_id=vk_id,
+                            fname=fname,
+                            lname=lname,
+                            gender=gender,
+                            birth_date=bdate,
+                            location=location,
+                            state=state)
 
             self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
             if not self.pref_to_update:
@@ -60,25 +64,18 @@ class data_base:
             cursess.add(newpref)
             cursess.commit()
 
-
     def update_state(self, vk_id, new_state, cursess):
-
         self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
 
         if self.user_to_update:
-        
             self.user_to_update.state = new_state
             cursess.commit()
 
         else:
-            
-            print("User not found.")
-
+            logging.error(f"User {vk_id} not found.")
 
     def like(self, liker, liked, cursess):
-      
-        self.newlike = Likes(liker = liker,
-                        liked = liked)
+        self.newlike = Likes(liker=liker, liked=liked)
         cursess.add(self.newlike)   
         try:
             cursess.commit()
@@ -86,9 +83,7 @@ class data_base:
             cursess.rollback()
 
     def block(self, blocker, blocked, cursess):
-
-        self.newblock = Blocks(blocker = blocker,
-                        blocked = blocked)
+        self.newblock = Blocks(blocker=blocker, blocked=blocked)
         cursess.add(self.newblock)   
         try:
             cursess.commit()
@@ -96,10 +91,8 @@ class data_base:
             cursess.rollback()
     
     def is_blocked(self, blocker, candidate_id, cursess):
-
         self.blocker = cursess.query(Blocks).filter_by(blocker=blocker).all()
         if self.blocker:
-            
             blocked = []
             for el in self.blocker:
                 blocked.append(el.blocked)
@@ -107,12 +100,9 @@ class data_base:
                 return True
             else:
                 return False
-        
 
     def match(self, matcher, matched, cursess):
-
-        self.newmatch = Matches(user1 = matcher,
-                        user2 = matched)
+        self.newmatch = Matches(user1=matcher, user2=matched)
         cursess.add(self.newmatch)   
         try:
             cursess.commit()
@@ -120,7 +110,6 @@ class data_base:
             pass
 
     def prefer_location(self, vk_id, location, cursess):
-
         #находим запись пользователя в БД
         self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
         #проверяем существует ли запись в БД
@@ -129,8 +118,7 @@ class data_base:
             cursess.commit()
 
         else:
-            print("User is not found in Preferences table.")
-
+            logging.error(f"User {vk_id} is not found in Preferences table.")
 
     def show_liked(self, user, cursess):
         self.liked = cursess.query(Likes).join(Candidate, Candidate.viewer_vk_id==Likes.liker).filter_by(viewer_vk_id=user).all()
@@ -138,22 +126,13 @@ class data_base:
         for el in self.liked:
             self.details = cursess.query(Candidate).filter_by(vk_id=el.liked).all()
             for el2 in self.details:
-                result = {
-                    el2.photo_id : el2.user_url
-                }
+                result = (
+                    f'photo{el2.photo_id}', f'{el2.fname}, {el2.user_url}'
+                )
                 like.append(result)
         return like
-                
-            
-        #if self.liked:
-            #like = []
-            #for el in self.liked:
-             #   like.append(el.liked)
-            #self.cand = cursess.query(Candidate).filter_by(viewer_vk_id=user).all()
-            
 
     def prefer_age(self, vk_id, age_from: str, age_to:str, cursess):
-
         #находим запись пользователя в БД
         self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
         #проверяем существует ли запись в БД
@@ -163,11 +142,9 @@ class data_base:
             cursess.commit()
 
         else:
-            print("User is not found in Preferences table.")
-
+            logging.error(f"User {vk_id} is not found in Preferences table.")
 
     def prefer_gender(self, vk_id, gender: str, cursess):
-
         #находим запись пользователя в БД
         self.pref_to_update = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
         #проверяем существует ли запись в БД
@@ -176,14 +153,12 @@ class data_base:
             cursess.commit()
 
         else:
-            print("User is not found in Preferences table.")
+            logging.error(f"User {vk_id} is not found in Preferences table.")
 
     def check_if_seen(self, user_id, candidate_id, cursess):
-        
         self.user = cursess.query(Users).filter_by(vk_id=user_id).first()
         self.candidate = cursess.query(Candidate).filter_by(viewer_vk_id=self.user.vk_id).all() 
         if self.candidate:
-            
             cand_list = []
             for el in self.candidate:
                 cand_list.append(el.vk_id)
@@ -191,7 +166,6 @@ class data_base:
                 return True
             else:
                 return False
-                
 
     def add_candidate(self, viewer_vk_id, vk_id, fname, lname, gender, location, birth_date, photo_id, user_url, cursess):
         self.cand_to_update = cursess.query(Candidate).filter_by(viewer_vk_id=viewer_vk_id, vk_id=vk_id).all()
@@ -212,8 +186,6 @@ class data_base:
                 cursess.commit()
 
     def get_pref(self, vk_id, cursess):
-        
-        
         self.user_to_update = cursess.query(Users).filter_by(vk_id=vk_id).first()
         if self.user_to_update:
             self.pref = cursess.query(Preferences).filter_by(vk_id=vk_id).first()
@@ -222,11 +194,12 @@ class data_base:
                       'age_from': self.pref.age_from,
                       'age_to': self.pref.age_to,
                       'location': self.pref.location}
-
+            return result
         else:
-            print('User does not exist.')
-        
-        return result
+            logging.info(f'User {vk_id} does not exist.')
+
+
+
 
 if __name__ == "__main__":
 
