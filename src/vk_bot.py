@@ -24,7 +24,7 @@ def write_msg(user_id, message, keyboard=None):
     }
     if keyboard:
         message['keyboard'] = keyboard.get_keyboard()
-    vk.method('messages.send', message)
+    vk.method('messages.send', messagvk_ide)
 
 
 
