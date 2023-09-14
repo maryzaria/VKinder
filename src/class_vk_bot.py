@@ -14,6 +14,7 @@ from methods import data_base
 
 
 logging.basicConfig(level=logging.INFO, filename="pylog.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s")
+NON_LETTERS = re.compile(r'[!?.,<>:''""/]*')
 
 
 class VkinderBot:
@@ -28,6 +29,8 @@ class VkinderBot:
 
     # длительное подключение
     long_poll = None
+
+    sex, age_from, age_to, city = None, None, None, None
 
     users_candidates = {}
 
@@ -185,10 +188,10 @@ class VkinderBot:
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 # пользователь нажимает кнопку 'начать' или пишет 'начать' или 'привет'
                 msg_text = event.text
-                id = event.user_id
-                if re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("привет", 'начать'):
+                user_id = event.user_id
+                if NON_LETTERS.sub('', msg_text).lower() in ("привет", 'начать'):
                     new_vk_api = VK()
-                    newdict = new_vk_api.get_user_info(user_ids=id)
+                    newdict = new_vk_api.get_user_info(user_ids=user_id)
                     # создаем новую бд с параметрами подключения из config.ini
                     self.newdb = data_base('config.ini')
                     # создаем все таблицы
@@ -196,7 +199,7 @@ class VkinderBot:
                     # открываем новую сессию бд
                     self.new_session = self.newdb.create_session(self.newdb.engine)
                     # добавляем данные пользователя взятые из словаря newdict из метода .get_user_info класса VK api
-                    self.newdb.add_user(newdict['id'],
+                    self.newdb.add_user(newdict['user_id'],
                                         newdict['first_name'],
                                         newdict['last_name'],
                                         newdict['sex'],
@@ -204,77 +207,76 @@ class VkinderBot:
                                         newdict['city']['title'],
                                         'start',
                                         self.new_session)
-                    self.start_message(id)
+                    self.start_message(user_id)
                     # отдельным методом не обновлял статус, при создании новой записи в бд сразу присвоил start
                     self.state = 'start'  # обновить состояние пользователя в БД
 
-
                 elif msg_text == "Начать поиск" or self.state == 'start':
-                    # self.town(id)
-                    self.send_msg(id, 'Введите город, где хотите найти партнера')
+                    # self.town(user_id)
+                    self.send_msg(user_id, 'Введите город, где хотите найти партнера')
                     self.state = 'town'
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='town', cursess=self.new_session)
+                    self.newdb.update_state(vk_id=user_id, new_state='town', cursess=self.new_session)
 
                 elif self.state == 'town':
                     self.city = msg_text
-                    logging.info(f'Пользователь: {id}. Предпочтительный город {self.city} сохранен')
+                    logging.info(f'Пользователь: {user_id}. Предпочтительный город {self.city} сохранен')
                     # сохраняем выбранный город town в БД
-                    self.newdb.prefer_location(vk_id=id, location=self.city, cursess=self.new_session)
+                    self.newdb.prefer_location(vk_id=user_id, location=self.city, cursess=self.new_session)
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='age', cursess=self.new_session)
+                    self.newdb.update_state(vk_id=user_id, new_state='age', cursess=self.new_session)
                     self.state = 'age'
-                    self.age(id)
+                    self.age(user_id)
 
                 elif self.state == 'age':
                     self.age_from, self.age_to = map(int, msg_text.split('-'))
                     # сохраняем выбранный возраст town в БД, учитывая, что возраст в формате '20-30'
-                    self.newdb.prefer_age(vk_id=id, age_from=self.age_from, age_to=self.age_to, cursess=self.new_session)
+                    self.newdb.prefer_age(vk_id=user_id, age_from=self.age_from, age_to=self.age_to, cursess=self.new_session)
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='sex', cursess=self.new_session)
-                    logging.info(f'Пользователь: {id}. Предпочтительный возраст {self.age_from}-{self.age_to} сохранен')
+                    self.newdb.update_state(vk_id=user_id, new_state='sex', cursess=self.new_session)
+                    logging.info(f'Пользователь: {user_id}. Предпочтительный возраст {self.age_from}-{self.age_to} сохранен')
                     self.state = 'sex'
-                    self.prefer_sex(id)
+                    self.prefer_sex(user_id)
 
                 elif self.state == 'sex':
                     self.sex = '1' if msg_text == 'Женский' else '2'
                     # сохраняем выбранный пол town в БД
-                    self.newdb.prefer_gender(vk_id=id, gender=self.sex, cursess=self.new_session)
+                    self.newdb.prefer_gender(vk_id=user_id, gender=self.sex, cursess=self.new_session)
                     # обновляем состояние пользователя в БД
-                    self.newdb.update_state(vk_id=id, new_state='search', cursess=self.new_session)
-                    logging.info(f'Пользователь: {id}. Предпочтительный пол {msg_text}({self.sex}) сохранен')
+                    self.newdb.update_state(vk_id=user_id, new_state='search', cursess=self.new_session)
+                    logging.info(f'Пользователь: {user_id}. Предпочтительный пол {msg_text}({self.sex}) сохранен')
                     self.state = 'search'
-                    self.users_candidates[id] = NextUser(user_id=id, cursess=self.new_session, db=self.newdb)
-                    self.new_user_id = self.send_user_photos(id)
+                    self.users_candidates[user_id] = NextUser(user_id=user_id, cursess=self.new_session, db=self.newdb)
+                    self.new_user_id = self.send_user_photos(user_id)
 
-                elif re.sub(r'[!?.,<>:''""/]*', '', msg_text).lower() in ("пока", "завершить", "до свидания", "стоп", "хватит"):
+                elif NON_LETTERS.sub('', msg_text).lower() in ("пока", "завершить", "до свидания", "стоп", "хватит"):
                     self.state = 'stop'
-                    self.send_msg(id, f"Поиск приостановлен! До скорой встречи🖤\nЕсли захотите возобновить поиск, напишите ПРИВЕТ или НАЧАТЬ")
+                    self.send_msg(user_id, f"Поиск приостановлен! До скорой встречи🖤\nЕсли захотите возобновить поиск, напишите ПРИВЕТ или НАЧАТЬ")
 
                 elif msg_text == 'Нравится':
                     # сохраняем пользователя self.new_user_id в таблицу likes
-                    self.newdb.like(liker=id, liked=self.new_user_id, cursess=self.new_session)
-                    logging.info(f'Пользователь {id} поставил лайк {self.new_user_id}')
-                    self.continue_conversation(id)
+                    self.newdb.like(liker=user_id, liked=self.new_user_id, cursess=self.new_session)
+                    logging.info(f'Пользователь {user_id} поставил лайк {self.new_user_id}')
+                    self.continue_conversation(user_id)
 
                 elif msg_text == 'Не нравится':
                     # сохраняем пользователя self.new_user_id в таблицу dislikes
-                    self.newdb.block(blocker=id, blocked=self.new_user_id, cursess=self.new_session)
-                    logging.info(f'Пользователь {id} поставил дизлайк {self.new_user_id}')
-                    self.continue_conversation(id)
+                    self.newdb.block(blocker=user_id, blocked=self.new_user_id, cursess=self.new_session)
+                    logging.info(f'Пользователь {user_id} поставил дизлайк {self.new_user_id}')
+                    self.continue_conversation(user_id)
 
                 elif msg_text == 'Список понравившихся пользователей':
-                    self.newdb.update_state(vk_id=id, new_state='stop', cursess=self.new_session)
-                    likes = self.newdb.show_liked(id, self.new_session)
-                    self.like_list(id, likes)
+                    self.newdb.update_state(vk_id=user_id, new_state='stop', cursess=self.new_session)
+                    likes = self.newdb.show_liked(user_id, self.new_session)
+                    self.like_list(user_id, likes)
                     self.state = 'stop'
 
                 elif msg_text == 'Дальше' or self.state == 'search':
-                    self.send_user_photos(id)
+                    self.send_user_photos(user_id)
 
                 else:
                     self.send_msg(event.user_id, "Не понял вашего ответа, попробуйте еще раз")
-                    logging.error(f'Пользователь {id} написал {msg_text}')
+                    logging.error(f'Пользователь {user_id} написал {msg_text}')
 
 
 if __name__ == '__main__':
